@@ -1,3 +1,5 @@
 .idea
 *.i??
 .gradle
+out
+output
