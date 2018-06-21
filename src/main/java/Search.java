@@ -2,9 +2,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -40,6 +40,27 @@ public class Search {
         });
 
         System.out.println(cities);
+    }
+
+    public static Results $(String start, String end, Map<String, City> cities){
+        Map<String, Float> h = cities.entrySet().stream().collect(Collectors.toMap(
+            e -> e.getKey(),
+            e -> {
+                float lat1 = e.getValue().latitude;
+                float lat2 = cities.get(end).latitude;
+                float lon1 = e.getValue().longitude;
+                float lon2 = cities.get(end).longitude;
+                return Math.sqrt((lat1 - lat2)*(lat1 - lat2) + (lon1 - lon2)*(lon1 - lon2));
+            }
+        ));
+//        class a$Node{
+//            final a$Node parent;
+//            final float stepCost;
+//            private float g;
+//            pri
+//        }
+        Set<String> explored = new HashSet<>();
+//        Set<String>
     }
 }
 
