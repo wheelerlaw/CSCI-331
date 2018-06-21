@@ -5,6 +5,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Main execution class.
+ */
 public class Search {
 
     private static final String CITIES_FILENAME = "city.dat";
@@ -52,6 +55,11 @@ public class Search {
 
 }
 
+/**
+ * Generic representation for a state in a statespace. Parameterized such that we don't lose the type information on
+ * this interface's function definitions due to type erasure in Java.
+ * @param <S> The type of the state.
+ */
 interface State<S>{
     String name();
     float distanceTo(S o);
@@ -60,6 +68,9 @@ interface State<S>{
     int hashCode();
 }
 
+/**
+ * An implementation of a state in a statespace, representing a City located by coordinates.
+ */
 class City implements State<City> {
     private final String name;
     private final String state;
@@ -67,6 +78,10 @@ class City implements State<City> {
     private final float longitude;
     final Set<City> neighbors;
 
+    /**
+     * Create an instance of a City from a string with 4 tokens separated by whitespace.
+     * @param line
+     */
     City(String line){
         String[] tokens = line.split("\\s+");
         this.name = tokens[0];
@@ -76,11 +91,21 @@ class City implements State<City> {
         this.neighbors = new HashSet<>();
     }
 
+    /**
+     * Return the name of this state, in this case it is the name of the city.
+     * @return
+     */
     @Override
     public String name() {
         return this.name;
     }
 
+    /**
+     * Calculate the distance of this city from the distance of another using the coordinates provided in both.
+     * @param city The other city to find the distance to.
+     * @return The distance to the other city.
+     */
+    @Override
     public float distanceTo(City city){
         float lat1 = this.latitude;
         float lat2 = city.latitude;
@@ -89,11 +114,20 @@ class City implements State<City> {
         return (float)Math.sqrt((lat1 - lat2)*(lat1 - lat2) + (lon1 - lon2)*(lon1 - lon2)) * 100;
     }
 
+    /**
+     * Get a collection of the other neighbors to this city.
+     * @return The collection of neighbors.
+     */
     @Override
     public Collection<City> neighbors() {
         return this.neighbors;
     }
 
+    /**
+     * Return a string representation of this city, which is useful for debugging (either interactively or by using
+     * print statements).
+     * @return The string representation of the city.
+     */
     @Override
     public String toString() {
         return name
@@ -104,6 +138,11 @@ class City implements State<City> {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Determine if this city is equal to another city by comparing the city names and states.
+     * @param obj The other city to compare against.
+     * @return True if the cities have the same name and state. False if they don't, or are not the same type.
+     */
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof City)) return false;
@@ -111,22 +150,125 @@ class City implements State<City> {
         return this.name.equals(city.name) && this.state.equals(city.state);
     }
 
+    /**
+     * Calculate the hashcode for this city, which is useful for storing it inside of a HashSet or HashMap.
+     * @return The hashcode of the name multiplied by the hashcode of the state.
+     */
     @Override
     public int hashCode() {
         return this.name.hashCode() * this.state.hashCode();
     }
 }
 
+/**
+ * A generic search algorithm.
+ * @param <S> The type of state that makes up the statespace in which this search algorithm will search.
+ */
+abstract class SearchAlgorithm<S extends State<S>> {
+    /**
+     * Get the name of the algorithm extending this abstract search algorithm.
+     * @return The name of the search algorithm.
+     */
+    abstract String getName();
+
+    /**
+     * Executes the algorithm and returns the results.
+     * @param start The start state.
+     * @param end The end state.
+     * @return Results containing the list of hops on the path that the algorithm found, the length of the path,
+     *         and some other relevant information.
+     */
+    abstract Results<S, SearchAlgorithm<S>> execute(S start, S end);
+
+    final Set<S> stateSpace;
+
+    /**
+     * Default constructor that implementing algorithms will call.
+     * @param stateSpace
+     */
+    SearchAlgorithm(Set<S> stateSpace){
+        this.stateSpace = stateSpace;
+    }
+
+
+}
+
+/**
+ * A generic results report for a search algorithm. Parameterized by the state and algorithm types.
+ * @param <S> The state type.
+ * @param <A> The algorithm type.
+ */
+class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
+    private List<S> hops;
+    private float distance;
+    private A algorithm;
+
+    /**
+     * Return a string report of the algorithm's results. Prints the states in the solution path, the length of the
+     * path, and how many hops in the path.
+     * @return
+     */
+    String resultsString(){
+        StringJoiner sj = new StringJoiner("")
+            .add(algorithm.getName())
+            .add(" Search Results:\n");
+        for(S hop: hops){
+            sj.add(hop.name()).add("\n");
+        }
+
+        sj.add("That took ").add(String.valueOf(hops.size() - 1)).add(" hops to find.\n");
+        sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.");
+        return sj.toString();
+    }
+
+    /**
+     * Create an instance of the report.
+     * @param hops The list of hop (each hop is a state) in the solution path.
+     * @param distance The length of the solution path.
+     * @param algorithm The algorithm used to search.
+     */
+    Results(List<S> hops, float distance, A algorithm){
+        this.hops = hops;
+        this.distance = distance;
+        this.algorithm = algorithm;
+    }
+}
+
+
+/*
+ * Implementations of search algorithms live down here.
+ */
+
+/**
+ * Implementation of the A* search algorithm.
+ * @param <S> The type of state that makes up the statespace in which it will be performing its search.
+ */
 class AStar<S extends State<S>> extends SearchAlgorithm<S> {
+
+    /**
+     * Create an instance of the algorithm.
+     * @param stateSpace The statespace represented as a graph.
+     */
     AStar(Set<S> stateSpace) {
         super(stateSpace);
     }
 
+    /**
+     * Return the name of the algorithm to be used in the report generation.
+     * @return The name of the algorithm (A* in this case).
+     */
     @Override
     String getName() {
         return "A*";
     }
 
+    /**
+     * Main execution of the algorithm.
+     * @param start The start state.
+     * @param end The end state.
+     * @return An instance of a report that contains the list of hops from the start state to the end state,
+     *         as well as any other relevant information.
+     */
     @Override
     public Results<S, SearchAlgorithm<S>> execute(S start, S end) {
         Map<S, Float> h = stateSpace.stream().collect(Collectors.toMap(
@@ -134,7 +276,7 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
             e -> e.distanceTo(end)
         ));
 
-        AStarNode node = new AStarNode(null, start, h);
+        AStarNode node = new AStarNode(null, start, h::get);
         SortedSet<AStarNode> frontier = new TreeSet<>();
         frontier.add(node);
 
@@ -148,7 +290,7 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
             explored.add(node.state);
 
             for (S neighborState: node.state.neighbors()){
-                AStarNode child = new AStarNode(node, neighborState, h);
+                AStarNode child = new AStarNode(node, neighborState, h::get);
                 if (!explored.contains(child.state)){
                     frontier.add(child);
                 }
@@ -167,6 +309,9 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
         return new Results<>(path, length, this);
     }
 
+    /**
+     * Internal housekeeping object used by the algorithm to keep track of its search.
+     */
     private class AStarNode implements Comparable<AStarNode>{
         final AStarNode parent;
         final S state;
@@ -175,16 +320,28 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
         final float g;
         final float f;
 
-        AStarNode(AStarNode parent, S state, Map<S, Float> h){
+        /**
+         * Create an instance of a node on the search tree.
+         * @param parent The parent node to which this node will point.
+         * @param state A state in the statespace that this node represents.
+         * @param h A heuristic function that provides an optimistic guess of the distance between the current
+         *          state and the end state.
+         */
+        AStarNode(AStarNode parent, S state, Function<S, Float> h){
             if (parent == null) parent = this;
             this.parent = parent;
             this.state = state;
             this.stepCost = parent.state.distanceTo(state);
-            this.h = h.get(state);
+            this.h = h.apply(state);
             this.g = parent.g + this.stepCost;
             this.f = this.g + this.h;
         }
 
+        /**
+         * Comapre this node to any other node, on the basis of the nodes' f-values.
+         * @param o The other node to compare against.
+         * @return 0 if the nodes are the same, <0 if this node is less, and >0 if this node is greater.
+         */
         @Override
         public int compareTo(AStarNode o) {
             return Float.compare(this.f, o.f);
@@ -193,40 +350,3 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 
 }
 
-abstract class SearchAlgorithm<S extends State<S>> {
-    abstract String getName();
-    abstract Results<S, SearchAlgorithm<S>> execute(S start, S end);
-
-    final Set<S> stateSpace;
-
-    SearchAlgorithm(Set<S> stateSpace){
-        this.stateSpace = stateSpace;
-    }
-
-
-}
-
-class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
-    private List<S> hops;
-    private float distance;
-    private A algorithm;
-
-    String resultsString(){
-        StringJoiner sj = new StringJoiner("")
-            .add(algorithm.getName())
-            .add(" Search Results:\n");
-        for(S hop: hops){
-            sj.add(hop.name()).add("\n");
-        }
-
-        sj.add("That took ").add(String.valueOf(hops.size() - 1)).add(" hops to find.\n");
-        sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.");
-        return sj.toString();
-    }
-
-    Results(List<S> hops, float distance, A algorithm){
-        this.hops = hops;
-        this.distance = distance;
-        this.algorithm = algorithm;
-    }
-}
