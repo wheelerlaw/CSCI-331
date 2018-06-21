@@ -44,15 +44,17 @@ public class Search {
 
     public static Results $(String start, String end, Map<String, City> cities){
         Map<String, Float> h = cities.entrySet().stream().collect(Collectors.toMap(
-            e -> e.getKey(),
+            Map.Entry::getKey,
             e -> {
                 float lat1 = e.getValue().latitude;
                 float lat2 = cities.get(end).latitude;
                 float lon1 = e.getValue().longitude;
                 float lon2 = cities.get(end).longitude;
-                return Math.sqrt((lat1 - lat2)*(lat1 - lat2) + (lon1 - lon2)*(lon1 - lon2));
+                return (float)Math.sqrt((lat1 - lat2)*(lat1 - lat2) + (lon1 - lon2)*(lon1 - lon2));
             }
         ));
+
+        System.out.println(h);
 //        class a$Node{
 //            final a$Node parent;
 //            final float stepCost;
