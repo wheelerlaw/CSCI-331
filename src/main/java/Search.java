@@ -1,5 +1,4 @@
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -11,16 +10,19 @@ public class Search {
     private static final String CITIES_FILENAME = "city.dat";
     private static final String ROUTES_FILENAME = "edge.dat";
 
-    private static final boolean develop = true;
-
     public static void main(String[] args) throws IOException {
         if (args.length != 2){
             System.err.println("Error: incorrect number of arguments");
+            System.exit(1);
         }
 
-        if (!develop){
+        // In the event that we are told to read/write from/to stdin/stdout.
+        if (!args[0].trim().equals("-")) {
+            System.setIn(new FileInputStream(args[0]));
+        }
+
+        if (!args[1].trim().equals("-")) {
             System.setOut(new PrintStream(args[1]));
-            System.exit(1);
         }
 
         // Build the map of stateSpace (hehe). String -> City, where String is the city name
@@ -37,13 +39,15 @@ public class Search {
             cities.get(tokens[1]).neighbors.add(cities.get(tokens[0]));
         });
 
-        if (!develop){
-            System.out.println(cities);
-        }
+        // Read input from whatever System.in has been set to
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 
+        String start = input.readLine();
+        String end = input.readLine();
 
+        // Instantiate and execute the algorithms. Print results.
         SearchAlgorithm<City> aStar = new AStar<>(new HashSet<>(cities.values()));
-        System.out.println(aStar.execute(cities.get("Olympia"), cities.get("SaltLakeCity")).resultsString());
+        System.out.println(aStar.execute(cities.get(start), cities.get(end)).resultsString());
     }
 
 }
@@ -53,7 +57,7 @@ interface State<S>{
     float distanceTo(S o);
     Collection<S> neighbors();
     boolean equals(Object obj);
-
+    int hashCode();
 }
 
 class City implements State<City> {
@@ -105,6 +109,11 @@ class City implements State<City> {
         if (!(obj instanceof City)) return false;
         City city = (City)obj;
         return this.name.equals(city.name) && this.state.equals(city.state);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.name.hashCode() * this.state.hashCode();
     }
 }
 
@@ -184,8 +193,6 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 
 }
 
-
-
 abstract class SearchAlgorithm<S extends State<S>> {
     abstract String getName();
     abstract Results<S, SearchAlgorithm<S>> execute(S start, S end);
@@ -198,6 +205,7 @@ abstract class SearchAlgorithm<S extends State<S>> {
 
 
 }
+
 class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
     private List<S> hops;
     private float distance;
@@ -212,7 +220,7 @@ class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
         }
 
         sj.add("That took ").add(String.valueOf(hops.size() - 1)).add(" hops to find.\n");
-        sj.add("Total distance = ").add(String.valueOf(distance)).add(" miles.");
+        sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.");
         return sj.toString();
     }
 
@@ -221,5 +229,4 @@ class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
         this.distance = distance;
         this.algorithm = algorithm;
     }
-
 }
