@@ -91,10 +91,40 @@ public class Search {
  * @param <S> The type of the state.
  */
 interface State<S>{
+
+    /**
+     * Get the name of this state.
+     * @return
+     */
     String name();
+
+    /**
+     * Calculate the direct distance between this state and some other arbitrary state.
+     * @param o
+     * @return
+     */
     float distanceTo(S o);
+
+    /**
+     * Return a NavigableSet of neighbors of this state. This makes the strong assumption that there
+     * is only one direct connection between any two states that are directly connected (i.e no two
+     * states can have multiple direct paths between them).
+     * @return NavigableSet of neighbors.
+     */
     NavigableSet<S> neighbors();
+
+    /**
+     * Determine if an instance of this state is equal to some arbitrary object.
+     * @param obj The object to determine the equality between.
+     * @return Whether this state is equal to the other object.
+     */
     boolean equals(Object obj);
+
+    /**
+     * Calculate the hashcode of this state. Used for when this state is stored in any
+     * type of hashing collection.
+     * @return The hashcode as an integer.
+     */
     int hashCode();
 }
 
@@ -307,20 +337,10 @@ abstract class SearchAlgorithm<S extends State<S>> {
  */
 class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 
-    /**
-     * Create an instance of the algorithm.
-     *
-     * @param stateSpace The statespace represented as a graph.
-     */
     AStar(Set<S> stateSpace) {
         super(stateSpace);
     }
 
-    /**
-     * Return the name of the algorithm to be used in the report generation.
-     *
-     * @return The name of the algorithm (A* in this case).
-     */
     @Override
     String getName() {
         return "A*";
@@ -395,13 +415,12 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 }
 
 
+/**
+ * Implementation of the Depth-First search algorithm.
+ * @param <S> The type of state that makes up the statespace in which it will be performing its search.
+ */
 class DepthFirst<S extends State<S>> extends SearchAlgorithm<S>{
 
-    /**
-     * Default constructor that implementing algorithms will call.
-     *
-     * @param stateSpace
-     */
     DepthFirst(Set<S> stateSpace) {
         super(stateSpace);
     }
@@ -411,6 +430,14 @@ class DepthFirst<S extends State<S>> extends SearchAlgorithm<S>{
         return "Depth-First";
     }
 
+    /**
+     * Main execution of the algorithm.
+     *
+     * @param start The start state.
+     * @param end   The end state.
+     * @return An instance of a report that contains the list of hops from the start state to the end state,
+     * as well as any other relevant information.
+     */
     @Override
     Results<S, SearchAlgorithm<S>> execute(S start, S end) {
         Set<S> visited = new HashSet<>();
@@ -434,7 +461,7 @@ class DepthFirst<S extends State<S>> extends SearchAlgorithm<S>{
                     break outer;
                 }
 
-                if(!visited.contains(child.state)){
+                if(!visited.contains(child.state) && frontier.stream().noneMatch(n -> child.state.equals(n.state))){
                     frontier.push(child);
                 }
             }
@@ -444,6 +471,12 @@ class DepthFirst<S extends State<S>> extends SearchAlgorithm<S>{
     }
 }
 
+
+
+/**
+ * Implementation of the Breadth-First search algorithm.
+ * @param <S> The type of state that makes up the statespace in which it will be performing its search.
+ */
 class BreadthFirst<S extends State<S>> extends SearchAlgorithm<S> {
 
     /**
@@ -460,6 +493,14 @@ class BreadthFirst<S extends State<S>> extends SearchAlgorithm<S> {
         return "Breadth-First";
     }
 
+    /**
+     * Main execution of the algorithm.
+     *
+     * @param start The start state.
+     * @param end   The end state.
+     * @return An instance of a report that contains the list of hops from the start state to the end state,
+     * as well as any other relevant information.
+     */
     @Override
     Results<S, SearchAlgorithm<S>> execute(S start, S end) {
         SearchNode node = new SearchNode(null, start);
@@ -484,7 +525,7 @@ class BreadthFirst<S extends State<S>> extends SearchAlgorithm<S> {
                     break outer;
                 }
 
-                if(!visited.contains(child.state)){
+                if(!visited.contains(child.state) && frontier.stream().noneMatch(n -> child.state.equals(n.state))){
                     frontier.add(child);
                 }
             }
