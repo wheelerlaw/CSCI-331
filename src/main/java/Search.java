@@ -1,5 +1,6 @@
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Function;
@@ -15,8 +16,17 @@ public class Search {
 
     public static void main(String[] args) throws IOException {
         if (args.length != 2){
-            System.err.println("Error: incorrect number of arguments");
+            System.err.println("Usage: java Search inputFile outputFile");
             System.exit(1);
+        }
+
+        try {
+            Files.newBufferedReader(Paths.get(CITIES_FILENAME));
+            Files.newBufferedReader(Paths.get(ROUTES_FILENAME));
+            Files.newBufferedReader(Paths.get(args[0]));
+        } catch (NoSuchFileException e){
+            System.err.println("File not found: " + e.getMessage());
+            System.exit(0);
         }
 
         // In the event that we are told to read/write from/to stdin/stdout.
@@ -45,15 +55,32 @@ public class Search {
         // Read input from whatever System.in has been set to
         BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 
-        String start = input.readLine();
-        String end = input.readLine();
+        String startName = input.readLine();
+        String endName = input.readLine();
+
+        City start = cities.get(startName);
+        City end = cities.get(endName);
+
+        if (start == null){
+            System.err.println("No such city: (" + startName + ")");
+            System.exit(1);
+        }
+
+        if (end == null){
+            System.err.println("No such city: (" + endName + ")");
+            System.exit(1);
+        }
 
         // Instantiate and execute the algorithms. Print results.
-        SearchAlgorithm<City> aStar = new AStar<>(new HashSet<>(cities.values()));
-        System.out.println(aStar.execute(cities.get(start), cities.get(end)).resultsString());
+        SearchAlgorithm<City> bfs = new BreadthFirst<>(new HashSet<>(cities.values()));
+        System.out.println(bfs.execute(start, end).resultsString());
 
         SearchAlgorithm<City> dfs = new DepthFirst<>(new HashSet<>(cities.values()));
-        System.out.println(dfs.execute(cities.get(start), cities.get(end)).resultsString());
+        System.out.println(dfs.execute(start, end).resultsString());
+
+        SearchAlgorithm<City> aStar = new AStar<>(new HashSet<>(cities.values()));
+        System.out.println(aStar.execute(start, end).resultsString());
+
     }
 
 }
@@ -193,7 +220,7 @@ abstract class SearchAlgorithm<S extends State<S>> {
         this.stateSpace = stateSpace;
     }
 
-    Results<S, SearchAlgorithm<S>> getResults(SearchNode end){
+    Results<S, SearchAlgorithm<S>> generateResults(SearchNode end){
         float length = end.g;
 
         LinkedList<S> path = new LinkedList<>();
@@ -206,6 +233,9 @@ abstract class SearchAlgorithm<S extends State<S>> {
         return new Results<>(path, length, this);
     }
 
+    /**
+     * A basic search node. Has the parent, the state it represents, and the step and cumulative costs.
+     */
     class SearchNode {
         final SearchNode parent;
         final S state;
@@ -221,51 +251,50 @@ abstract class SearchAlgorithm<S extends State<S>> {
         }
     }
 
-}
-
-/**
- * A generic results report for a search algorithm. Parameterized by the state and algorithm types.
- * @param <S> The state type.
- * @param <A> The algorithm type.
- */
-class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
-    private List<S> hops;
-    private float distance;
-    private A algorithm;
-
     /**
-     * Return a string report of the algorithm's results. Prints the states in the solution path, the length of the
-     * path, and how many hops in the path.
-     * @return
+     * A generic results report for a search algorithm. Parameterized by the state and algorithm types.
+     * @param <S> The state type.
+     * @param <A> The algorithm type.
      */
-    String resultsString(){
-        StringJoiner sj = new StringJoiner("")
-            .add("\n")
-            .add(algorithm.getName())
-            .add(" Search Results:\n");
-        for(S hop: hops){
-            sj.add(hop.name()).add("\n");
+    class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
+        private List<S> hops;
+        private float distance;
+        private A algorithm;
+
+        /**
+         * Return a string report of the algorithm's results. Prints the states in the solution path, the length of the
+         * path, and how many hops in the path.
+         * @return
+         */
+        String resultsString(){
+            StringJoiner sj = new StringJoiner("")
+                .add("\n")
+                .add(algorithm.getName())
+                .add(" Search Results:\n");
+            for(S hop: hops){
+                sj.add(hop.name()).add("\n");
+            }
+
+            sj.add("That took ").add(String.valueOf(hops.size() - 1)).add(" hops to find.\n");
+            sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.\n");
+            return sj.toString();
         }
 
-        sj.add("That took ").add(String.valueOf(hops.size() - 1)).add(" hops to find.\n");
-        sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.\n");
-        return sj.toString();
+        /**
+         * Create an instance of the report.
+         * @param hops The list of hop (each hop is a state) in the solution path.
+         * @param distance The length of the solution path.
+         * @param algorithm The algorithm used to search.
+         */
+        Results(List<S> hops, float distance, A algorithm){
+            this.hops = hops;
+            this.distance = distance;
+            this.algorithm = algorithm;
+        }
     }
 
-    /**
-     * Create an instance of the report.
-     * @param hops The list of hop (each hop is a state) in the solution path.
-     * @param distance The length of the solution path.
-     * @param algorithm The algorithm used to search.
-     */
-    Results(List<S> hops, float distance, A algorithm){
-        this.hops = hops;
-        this.distance = distance;
-        this.algorithm = algorithm;
-    }
+
 }
-
-
 
 
 /*
@@ -328,7 +357,7 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
             }
         }
 
-        return this.getResults(node);
+        return this.generateResults(node);
     }
 
     /**
@@ -411,7 +440,57 @@ class DepthFirst<S extends State<S>> extends SearchAlgorithm<S>{
             }
         }
 
-        return this.getResults(node);
+        return this.generateResults(node);
+    }
+}
+
+class BreadthFirst<S extends State<S>> extends SearchAlgorithm<S> {
+
+    /**
+     * Default constructor that implementing algorithms will call.
+     *
+     * @param stateSpace
+     */
+    BreadthFirst(Set<S> stateSpace) {
+        super(stateSpace);
+    }
+
+    @Override
+    String getName() {
+        return "Breadth-First";
+    }
+
+    @Override
+    Results<S, SearchAlgorithm<S>> execute(S start, S end) {
+        SearchNode node = new SearchNode(null, start);
+
+        Set<S> visited = new HashSet<>();
+        LinkedList<SearchNode> frontier = new LinkedList<>();
+
+        frontier.push(node);
+
+        outer:
+        while (!frontier.isEmpty()){
+            node = frontier.pop();
+
+            if (node.state.equals(end)) break;
+            visited.add(node.state);
+
+            for(S neighborState: node.state.neighbors()){
+                SearchNode child = new SearchNode(node, neighborState);
+
+                if (child.state.equals(end)) {
+                    node = child;
+                    break outer;
+                }
+
+                if(!visited.contains(child.state)){
+                    frontier.add(child);
+                }
+            }
+        }
+
+        return this.generateResults(node);
     }
 }
 
