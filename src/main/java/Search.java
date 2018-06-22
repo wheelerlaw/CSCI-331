@@ -51,6 +51,9 @@ public class Search {
         // Instantiate and execute the algorithms. Print results.
         SearchAlgorithm<City> aStar = new AStar<>(new HashSet<>(cities.values()));
         System.out.println(aStar.execute(cities.get(start), cities.get(end)).resultsString());
+
+        SearchAlgorithm<City> dfs = new DepthFirst<>(new HashSet<>(cities.values()));
+        System.out.println(dfs.execute(cities.get(start), cities.get(end)).resultsString());
     }
 
 }
@@ -63,7 +66,7 @@ public class Search {
 interface State<S>{
     String name();
     float distanceTo(S o);
-    Collection<S> neighbors();
+    NavigableSet<S> neighbors();
     boolean equals(Object obj);
     int hashCode();
 }
@@ -76,7 +79,7 @@ class City implements State<City> {
     private final String state;
     private final float latitude;
     private final float longitude;
-    final Set<City> neighbors;
+    final NavigableSet<City> neighbors;
 
     /**
      * Create an instance of a City from a string with 4 tokens separated by whitespace.
@@ -88,7 +91,7 @@ class City implements State<City> {
         this.state = tokens[1];
         this.latitude = Float.parseFloat(tokens[2]);
         this.longitude = Float.parseFloat(tokens[3]);
-        this.neighbors = new HashSet<>();
+        this.neighbors = new TreeSet<>(Comparator.comparing(City::name));
     }
 
     /**
@@ -119,7 +122,7 @@ class City implements State<City> {
      * @return The collection of neighbors.
      */
     @Override
-    public Collection<City> neighbors() {
+    public NavigableSet<City> neighbors() {
         return this.neighbors;
     }
 
@@ -190,6 +193,33 @@ abstract class SearchAlgorithm<S extends State<S>> {
         this.stateSpace = stateSpace;
     }
 
+    Results<S, SearchAlgorithm<S>> getResults(SearchNode end){
+        float length = end.g;
+
+        LinkedList<S> path = new LinkedList<>();
+        while (!end.state.equals(end.parent.state)) {
+            path.addFirst(end.state);
+            end = end.parent;
+        }
+        path.addFirst(end.state);
+
+        return new Results<>(path, length, this);
+    }
+
+    class SearchNode {
+        final SearchNode parent;
+        final S state;
+        final float stepCost;
+        final float g;
+
+        SearchNode(SearchNode parent, S state){
+            if (parent == null) parent = this;
+            this.parent = parent;
+            this.state = state;
+            this.stepCost = parent.state.distanceTo(state);
+            this.g = parent.g + this.stepCost;
+        }
+    }
 
 }
 
@@ -210,6 +240,7 @@ class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
      */
     String resultsString(){
         StringJoiner sj = new StringJoiner("")
+            .add("\n")
             .add(algorithm.getName())
             .add(" Search Results:\n");
         for(S hop: hops){
@@ -217,7 +248,7 @@ class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
         }
 
         sj.add("That took ").add(String.valueOf(hops.size() - 1)).add(" hops to find.\n");
-        sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.");
+        sj.add("Total distance = ").add(String.valueOf(Math.round(distance))).add(" miles.\n");
         return sj.toString();
     }
 
@@ -235,6 +266,8 @@ class Results<S extends State<S>, A extends SearchAlgorithm<S>> {
 }
 
 
+
+
 /*
  * Implementations of search algorithms live down here.
  */
@@ -247,6 +280,7 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 
     /**
      * Create an instance of the algorithm.
+     *
      * @param stateSpace The statespace represented as a graph.
      */
     AStar(Set<S> stateSpace) {
@@ -255,6 +289,7 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 
     /**
      * Return the name of the algorithm to be used in the report generation.
+     *
      * @return The name of the algorithm (A* in this case).
      */
     @Override
@@ -264,10 +299,11 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
 
     /**
      * Main execution of the algorithm.
+     *
      * @param start The start state.
-     * @param end The end state.
+     * @param end   The end state.
      * @return An instance of a report that contains the list of hops from the start state to the end state,
-     *         as well as any other relevant information.
+     * as well as any other relevant information.
      */
     @Override
     public Results<S, SearchAlgorithm<S>> execute(S start, S end) {
@@ -280,65 +316,45 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
         SortedSet<AStarNode> frontier = new TreeSet<>();
         frontier.add(node);
 
-        Set<S> explored = new HashSet<>();
-
-        while (!frontier.isEmpty()){
+        while (!frontier.isEmpty()) {
             node = frontier.first();
             frontier.remove(node);
 
             if (node.state.equals(end)) break;
-            explored.add(node.state);
 
-            for (S neighborState: node.state.neighbors()){
+            for (S neighborState : node.state.neighbors()) {
                 AStarNode child = new AStarNode(node, neighborState, h::get);
-                if (!explored.contains(child.state)){
-                    frontier.add(child);
-                }
+                frontier.add(child);
             }
         }
 
-        float length = node.g;
-
-        LinkedList<S> path = new LinkedList<>();
-        while (!node.state.equals(node.parent.state)){
-            path.addFirst(node.state);
-            node = node.parent;
-        }
-        path.addFirst(node.state);
-
-        return new Results<>(path, length, this);
+        return this.getResults(node);
     }
 
     /**
-     * Internal housekeeping object used by the algorithm to keep track of its search.
+     * Extending the default search because we need to track the f-value and h-value.
      */
-    private class AStarNode implements Comparable<AStarNode>{
-        final AStarNode parent;
-        final S state;
-        final float stepCost;
+    private class AStarNode extends SearchNode implements Comparable<AStarNode> {
         final float h;
-        final float g;
         final float f;
 
         /**
          * Create an instance of a node on the search tree.
+         *
          * @param parent The parent node to which this node will point.
-         * @param state A state in the statespace that this node represents.
-         * @param h A heuristic function that provides an optimistic guess of the distance between the current
-         *          state and the end state.
+         * @param state  A state in the statespace that this node represents.
+         * @param h      A heuristic function that provides an optimistic guess of the distance between the current
+         *               state and the end state.
          */
-        AStarNode(AStarNode parent, S state, Function<S, Float> h){
-            if (parent == null) parent = this;
-            this.parent = parent;
-            this.state = state;
-            this.stepCost = parent.state.distanceTo(state);
+        AStarNode(AStarNode parent, S state, Function<S, Float> h) {
+            super(parent, state);
             this.h = h.apply(state);
-            this.g = parent.g + this.stepCost;
-            this.f = this.g + this.h;
+            this.f = super.g + this.h;
         }
 
         /**
          * Comapre this node to any other node, on the basis of the nodes' f-values.
+         *
          * @param o The other node to compare against.
          * @return 0 if the nodes are the same, <0 if this node is less, and >0 if this node is greater.
          */
@@ -347,6 +363,55 @@ class AStar<S extends State<S>> extends SearchAlgorithm<S> {
             return Float.compare(this.f, o.f);
         }
     }
+}
 
+
+class DepthFirst<S extends State<S>> extends SearchAlgorithm<S>{
+
+    /**
+     * Default constructor that implementing algorithms will call.
+     *
+     * @param stateSpace
+     */
+    DepthFirst(Set<S> stateSpace) {
+        super(stateSpace);
+    }
+
+    @Override
+    String getName() {
+        return "Depth-First";
+    }
+
+    @Override
+    Results<S, SearchAlgorithm<S>> execute(S start, S end) {
+        Set<S> visited = new HashSet<>();
+        LinkedList<SearchNode> frontier = new LinkedList<>();
+
+        SearchNode node = new SearchNode(null, start);
+        frontier.push(node);
+
+        outer:
+        while (!frontier.isEmpty()){
+            node = frontier.pop();
+
+            if (node.state.equals(end)) break;
+            visited.add(node.state);
+
+            for(S neighborState: node.state.neighbors().descendingSet()){
+                SearchNode child = new SearchNode(node, neighborState);
+
+                if (child.state.equals(end)) {
+                    node = child;
+                    break outer;
+                }
+
+                if(!visited.contains(child.state)){
+                    frontier.push(child);
+                }
+            }
+        }
+
+        return this.getResults(node);
+    }
 }
 
