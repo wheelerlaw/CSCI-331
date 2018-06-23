@@ -7,4 +7,6 @@
  * in the user guide at https://docs.gradle.org/4.5/userguide/multi_project_builds.html
  */
 
-rootProject.name = 'csci331proj1'
+rootProject.name = 'CSCI-331'
+include 'proj1'
+
