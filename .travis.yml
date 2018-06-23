@@ -4,4 +4,5 @@ dist: xenial
 branches:
   only:
    - master
+before_script: openssl aes-256-cbc -K $encrypted_2ac299456ee4_key -iv $encrypted_2ac299456ee4_iv -in id_rsa.enc -out id_rsa -d
 script: gradlew test
