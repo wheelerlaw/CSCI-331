@@ -4,4 +4,4 @@
 out
 output
 build
-id_rsa
+*.key
