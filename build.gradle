@@ -2,3 +2,8 @@ task clean
 subprojects {
     rootProject.clean.dependsOn tasks.matching { it.name == "clean" }
 }
+
+task test
+subprojects {
+    rootProject.clean.dependsOn tasks.matching { it.name == "test" }
+}
