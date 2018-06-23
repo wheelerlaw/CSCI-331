@@ -15,7 +15,7 @@ remotes {
     glados {
         host = "glados.cs.rit.edu"
         user = "wpl3499"
-        identity = file("/home/wheeler/.ssh/rit")
+        identity = file("${System.getenv("HOME")}/.ssh/rit.key")
     }
 }
 
@@ -31,6 +31,7 @@ task csTest {
                 put from: "$project.projectDir.path/out2", into: 'csci331proj1'
                 put from: "$project.projectDir.path/city.dat", into: 'csci331proj1'
                 put from: "$project.projectDir.path/edge.dat", into: 'csci331proj1'
+
                 executeScript '''#!/usr/bin/env bash
 set -e
 cd csci331proj1
@@ -51,6 +52,7 @@ diff -w output4 out1
 /usr/local/dcs/jdk/bin/java Search - - < in1 > output5
 diff -w output5 out1
 '''
+
             }
         }
     }
@@ -62,3 +64,5 @@ task createSubmission(type: Zip){
     archiveName 'csci331_proj1_wpl3499.zip'
     destinationDir(buildDir)
 }
+
+test.dependsOn csTest
