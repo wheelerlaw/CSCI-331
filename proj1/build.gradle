@@ -15,7 +15,7 @@ remotes {
     glados {
         host = "glados.cs.rit.edu"
         user = "wpl3499"
-        identity = file("/home/wheeler/.ssh/rit")
+        identity = file("${System.getenv("HOME")}/.ssh/rit.key")
     }
 }
 
