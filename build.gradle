@@ -10,3 +10,36 @@ plugins {
 }
 
 apply plugin: 'java'
+
+remotes {
+    glados {
+        host = "glados.cs.rit.edu"
+        user = "wpl3499"
+        identity = file("/home/wheeler/.ssh/rit")
+    }
+}
+
+task csTest {
+    doLast {
+        ssh.run {
+            session(remotes.glados) {
+                execute 'rm -rf csci331proj1; mkdir csci331proj1'
+                put from: 'src/main/java/Search.java', into: 'csci331proj1'
+                put from: 'in1', into: 'csci331proj1'
+                put from: 'in2', into: 'csci331proj1'
+                put from: 'out1', into: 'csci331proj1'
+                put from: 'out2', into: 'csci331proj1'
+                put from: 'city.dat', into: 'csci331proj1'
+                put from: 'edge.dat', into: 'csci331proj1'
+                executeScript '''#!/usr/bin/env bash
+cd csci331proj1
+/usr/local/dcs/jdk/bin/javac Search.java
+/usr/local/dcs/jdk/bin/java Search in1 output1
+diff -w output1 out1
+/usr/local/dcs/jdk/bin/java Search in2 output2
+diff -w output2 out2
+'''
+            }
+        }
+    }
+}
