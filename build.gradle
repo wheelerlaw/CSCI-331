@@ -32,14 +32,33 @@ task csTest {
                 put from: 'city.dat', into: 'csci331proj1'
                 put from: 'edge.dat', into: 'csci331proj1'
                 executeScript '''#!/usr/bin/env bash
+set -e
 cd csci331proj1
 /usr/local/dcs/jdk/bin/javac Search.java
+
 /usr/local/dcs/jdk/bin/java Search in1 output1
 diff -w output1 out1
+
 /usr/local/dcs/jdk/bin/java Search in2 output2
 diff -w output2 out2
+
+/usr/local/dcs/jdk/bin/java Search - output3 < in1
+diff -w output3 out1
+
+/usr/local/dcs/jdk/bin/java Search in1 - > output4
+diff -w output4 out1
+
+/usr/local/dcs/jdk/bin/java Search - - < in1 > output5
+diff -w output5 out1
 '''
             }
         }
     }
+}
+
+task createSubmission(type: Zip){
+    from "src/main/java/"
+    include "*.java"
+    archiveName 'csci331_proj1_wpl3499.zip'
+    destinationDir(buildDir)
 }

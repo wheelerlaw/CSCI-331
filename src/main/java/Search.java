@@ -20,13 +20,16 @@ public class Search {
             System.exit(1);
         }
 
+        // Test that the specified files are available.
         try {
             Files.newBufferedReader(Paths.get(CITIES_FILENAME));
             Files.newBufferedReader(Paths.get(ROUTES_FILENAME));
-            Files.newBufferedReader(Paths.get(args[0]));
+            if (!args[0].trim().equals("-")) {
+                Files.newBufferedReader(Paths.get(args[0]));
+            }
         } catch (NoSuchFileException e){
             System.err.println("File not found: " + e.getMessage());
-            System.exit(0);
+            System.exit(1);
         }
 
         // In the event that we are told to read/write from/to stdin/stdout.
