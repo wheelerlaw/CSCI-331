@@ -160,7 +160,7 @@ public class ESS {
         } else if (individual2.strategy == Individual.Strategy.HAWK && individual1.strategy == Individual.Strategy.DOVE) {
             individual2.resources += resourceAmount;
         } else if (individual1.strategy == Individual.Strategy.HAWK && individual2.strategy == Individual.Strategy.HAWK) {
-            
+
         }
 
 
