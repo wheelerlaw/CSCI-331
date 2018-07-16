@@ -32,6 +32,8 @@ public class ESS {
         "Each resource is worth: %d%n" +
         "Cost of Hawk-Hawk interaction: %d";
 
+    private static int interactionCount = 0;
+
     public static void main(String[] args) throws IOException {
 
         if (args.length < 1 || args.length > 4){
@@ -140,7 +142,7 @@ public class ESS {
         return sj.toString();
     }
 
-    private static void runInteraction(List<Individual> population, int resourceAmount){
+    private static void runInteraction(List<Individual> population, int resourceAmount, int hawkHawkCost){
         Random random = new Random();
         int individual1Index = random.nextInt(population.size());
         int individual2Index = random.nextInt(population.size() - 1);
@@ -160,10 +162,17 @@ public class ESS {
         } else if (individual2.strategy == Individual.Strategy.HAWK && individual1.strategy == Individual.Strategy.DOVE) {
             individual2.resources += resourceAmount;
         } else if (individual1.strategy == Individual.Strategy.HAWK && individual2.strategy == Individual.Strategy.HAWK) {
+            individual1.resources += resourceAmount;
 
+            individual1.resources -= hawkHawkCost / 2;
+            individual2.resources -= hawkHawkCost / 2;
         }
 
-
+        StringJoiner sj = new StringJoiner("", "", "");
+        sj.add("Encounter: ").add(String.valueOf(interactionCount)).add("\n");
+        sj.add("Individual ").add(String.valueOf(individual1Index)).add(": ").add(individual1.strategy.name);
+        sj.add("Individual ").add(String.valueOf(individual2Index)).add(": ").add(individual2.strategy.name);
+        sj.add(individual1.strategy.name).add("/").add(individual2.strategy.name).add(": ").add(individual1.strategy.name).add(": ").add()
     }
 
 }
