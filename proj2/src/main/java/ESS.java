@@ -270,6 +270,9 @@ public class ESS {
 
 }
 
+/**
+ * Small class to represent an individual in the population.
+ */
 class Individual {
     int resources;
     Strategy strategy;
