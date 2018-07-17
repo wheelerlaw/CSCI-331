@@ -3,7 +3,9 @@ apply plugin: 'java'
 
 task createSubmission(type: Zip){
     from "src/main/java/"
+    from "src/main/resources"
     include "*.java"
+    include "README.*"
     archiveName 'csci331_proj2_wpl3499.zip'
     destinationDir(buildDir)
 }
