@@ -9,4 +9,5 @@
 
 rootProject.name = 'CSCI-331'
 include 'proj1'
+include 'proj2'
 
